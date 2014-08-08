@@ -440,6 +440,8 @@ namespace RyuaNerin.OAuth
 				wres.Close();
 			}
 
+			async.Request.Abort();
+
 			async.AsyncWaitHandle.Set();
 
 			if (async.CallBack != null)
