@@ -1,8 +1,8 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
-// RyuaNerin OAuth-Twitter Library v1.0.1
+// RyuaNerin OAuth-Twitter Library v1.0
 // Maked by RyuaNerin
-// Last Update : 2014-08-09
+// Last Update : 2014-08-08
 // The MIT License (MIT)
 
 // Copyright (c) 2014, RyuaNerin
@@ -197,6 +197,8 @@ namespace RyuaNerin.OAuth
 
 			public string Result { get; set; }
 
+			public Exception Exception { get; set; }
+
 			private ManualResetEvent m_waitHandle;
 			public ManualResetEvent AsyncWaitHandle { get { return this.m_waitHandle; } }
 			WaitHandle IAsyncResult.AsyncWaitHandle { get { return this.m_waitHandle; } }
@@ -369,6 +371,9 @@ namespace RyuaNerin.OAuth
 
 			async.CompletedSynchronously = true;
 
+			if (async.Exception != null)
+				throw async.Exception;
+
 			return async.Result;
 		}
 		#endregion
@@ -413,15 +418,26 @@ namespace RyuaNerin.OAuth
 		{
 			Async async = (Async)o.AsyncState;
 
-			Stream stream = async.Request.EndGetRequestStream(async.BaseAsync);
+			try
+			{
+				Stream stream = async.Request.EndGetRequestStream(async.BaseAsync);
 
-			byte[] buff = new byte[4096];
-			int read;
-			while ((read = async.Stream.Read(buff, 0, 4096)) > 0)
-				stream.Write(buff, 0, read);
+				byte[] buff = new byte[4096];
+				int read;
+				while ((read = async.Stream.Read(buff, 0, 4096)) > 0)
+					stream.Write(buff, 0, read);
 
-			if (async.EmbStream)
-				async.Stream.Dispose();
+				if (async.EmbStream)
+					async.Stream.Dispose();
+			}
+			catch (Exception e)
+			{
+				async.Exception = e;
+
+				async.AsyncWaitHandle.Set();
+				if (async.CallBack != null)
+					async.CallBack.Invoke(async);
+			}
 
 			async.BaseAsync = async.Request.BeginGetResponse(this.GetResult, async);
 		}
@@ -430,20 +446,26 @@ namespace RyuaNerin.OAuth
 		{
 			Async async = (Async)o.AsyncState;
 
-			using (WebResponse wres = async.Request.EndGetResponse(async.BaseAsync))
+			try
 			{
-				using (StreamReader reader = new StreamReader(wres.GetResponseStream(), Encoding.UTF8))
+				using (WebResponse wres = async.Request.EndGetResponse(async.BaseAsync))
 				{
-					async.Result = reader.ReadToEnd();
-					reader.Close();
+					using (StreamReader reader = new StreamReader(wres.GetResponseStream(), Encoding.UTF8))
+					{
+						async.Result = reader.ReadToEnd();
+						reader.Close();
+					}
+					wres.Close();
 				}
-				wres.Close();
+			}
+			catch (Exception e)
+			{
+				async.Exception = e;
 			}
 
 			async.Request.Abort();
 
 			async.AsyncWaitHandle.Set();
-
 			if (async.CallBack != null)
 				async.CallBack.Invoke(async);
 		}
