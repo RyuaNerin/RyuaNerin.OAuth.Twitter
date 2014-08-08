@@ -1,8 +1,8 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
-// RyuaNerin OAuth-Twitter Library v1.0
+// RyuaNerin OAuth-Twitter Library v1.0.1
 // Maked by RyuaNerin
-// Last Update : 2014-08-08
+// Last Update : 2014-08-09
 // The MIT License (MIT)
 
 // Copyright (c) 2014, RyuaNerin
@@ -213,7 +213,7 @@ namespace RyuaNerin.OAuth
 
 		#region Constructor
 		public Twitter(string appToken, string appSecret)
-			: this(appSecret, appSecret, null, null)
+			: this(appToken, appSecret, null, null)
 		{
 		}
 		public Twitter(string appToken, string appSecret, string userToken, string userSecret)
