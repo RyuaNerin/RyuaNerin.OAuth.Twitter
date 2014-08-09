@@ -1,8 +1,8 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
-// RyuaNerin OAuth-Twitter Library v1.0
+// RyuaNerin OAuth-Twitter Library v1.0.2
 // Maked by RyuaNerin
-// Last Update : 2014-08-08
+// Last Update : 2014-08-09
 // The MIT License (MIT)
 
 // Copyright (c) 2014, RyuaNerin
@@ -126,7 +126,11 @@ namespace RyuaNerin.OAuth
 			if (dic.Count > 0)
 			{
 				foreach (KeyValuePair<string, object> st in dic)
-					sb.AppendFormat("{0}={1}&", st.Key, OAuthUtils.UrlEncode(Convert.ToString(st.Value)));
+					if (st.Value is bool)
+						sb.AppendFormat("{0}={1}&", st.Key, (bool)st.Value ? "true" : "false");
+					else
+						sb.AppendFormat("{0}={1}&", st.Key, OAuthUtils.UrlEncode(Convert.ToString(st.Value)));
+
 				sb.Remove(sb.Length - 1, 1);
 			}
 
