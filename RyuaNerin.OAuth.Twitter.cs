@@ -1,6 +1,6 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
-// RyuaNerin OAuth-Twitter Library v1.0.3
+// RyuaNerin OAuth-Twitter Library v1.0.4
 // Maked by RyuaNerin
 // Last Update : 2014-08-09
 // The MIT License (MIT)
