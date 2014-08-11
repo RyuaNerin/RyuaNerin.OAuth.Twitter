@@ -1,6 +1,6 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
-// RyuaNerin OAuth-Twitter Library v1.0.2
+// RyuaNerin OAuth-Twitter Library v1.0.3
 // Maked by RyuaNerin
 // Last Update : 2014-08-09
 // The MIT License (MIT)
@@ -146,7 +146,7 @@ namespace RyuaNerin.OAuth
 				foreach (PropertyInfo p in values.GetType().GetProperties())
 				{
 					if (!p.CanRead) continue;
-					dic.Add(Convert.ToString(p.Name), Convert.ToString(p.GetValue(values, null)));
+					dic.Add(Convert.ToString(p.Name), p.GetValue(values, null));
 				}
 
 				return dic;
