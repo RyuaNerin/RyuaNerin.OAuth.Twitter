@@ -1,8 +1,8 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
-// RyuaNerin OAuth-Twitter Library v1.0.4
+// RyuaNerin OAuth-Twitter Library v1.1.0
 // Maked by RyuaNerin
-// Last Update : 2014-08-09
+// Last Update : 2014-08-11
 // The MIT License (MIT)
 
 // Copyright (c) 2014, RyuaNerin
@@ -70,12 +70,12 @@ namespace RyuaNerin.OAuth
 		}
 
 		private static DateTime GenerateTimeStampDateTime = new DateTime(1970, 1, 1, 0, 0, 0, 0);
-		public static long GenerateTimeStamp()
+		public static long GetTimeStamp()
 		{
 			return Convert.ToInt64((DateTime.UtcNow - GenerateTimeStampDateTime).TotalSeconds);
 		}
 
-		public static IDictionary<string, object> ToDictionary(string str)
+		public static IDictionary<string, object> StringToDic(string str)
 		{
 			Dictionary<string, object> dic = new Dictionary<string, object>();
 
@@ -129,7 +129,7 @@ namespace RyuaNerin.OAuth
 					if (st.Value is bool)
 						sb.AppendFormat("{0}={1}&", st.Key, (bool)st.Value ? "true" : "false");
 					else
-						sb.AppendFormat("{0}={1}&", st.Key, OAuthUtils.UrlEncode(Convert.ToString(st.Value)));
+						sb.AppendFormat("{0}={1}&", st.Key, Convert.ToString(st.Value));
 
 				sb.Remove(sb.Length - 1, 1);
 			}
@@ -137,7 +137,25 @@ namespace RyuaNerin.OAuth
 			return sb.ToString();
 		}
 
-		public static IDictionary<string, object> ObjectToDictionary(object values)
+		public static string DicToStringWithEncode(IDictionary<string, object> dic)
+		{
+			StringBuilder sb = new StringBuilder();
+
+			if (dic.Count > 0)
+			{
+				foreach (KeyValuePair<string, object> st in dic)
+					if (st.Value is bool)
+						sb.AppendFormat("{0}={1}&", st.Key, (bool)st.Value ? "true" : "false");
+					else
+						sb.AppendFormat("{0}={1}&", st.Key, UrlEncode(Convert.ToString(st.Value)));
+
+				sb.Remove(sb.Length - 1, 1);
+			}
+
+			return sb.ToString();
+		}
+
+		public static IDictionary<string, object> PropertyToDic(object values)
 		{
 			try
 			{
@@ -167,6 +185,7 @@ namespace RyuaNerin.OAuth
 
 			return dic;
 		}
+
 		public static IDictionary<string, object> AddRangeWithEncode(this IDictionary<string, object> dic, IDictionary<string, object> values)
 		{
 			foreach (KeyValuePair<string, object> st in values)
@@ -176,6 +195,58 @@ namespace RyuaNerin.OAuth
 					dic.Add(st.Key, OAuthUtils.UrlEncode(Convert.ToString(st.Value)));
 
 			return dic;
+		}
+
+		public static string FixUrl(string urlOrig)
+		{
+			urlOrig = urlOrig.Trim();
+
+			if (!urlOrig.StartsWith("https://") && !urlOrig.StartsWith("http://"))
+			{
+				StringBuilder sb = new StringBuilder();
+
+				int pos = 0;
+				int find = 0;
+
+				sb.Append('/');
+				if (urlOrig.IndexOf("/") == 0)
+					pos += 1;
+
+				sb.Append("1.1/");
+				find = urlOrig.IndexOf("1.1/");
+				if (find == 0 || find == pos)
+					pos += 4;
+
+				if (urlOrig.IndexOf("site.json") == pos ||
+					urlOrig.IndexOf("user.json") == pos ||
+					urlOrig.IndexOf("statuses/filter.json") == pos ||
+					urlOrig.IndexOf("statuses/firehose.json") == pos ||
+					urlOrig.IndexOf("statuses/sample.json") == pos
+				)
+					sb.Insert(0, "https://userstream.twitter.com");
+				else
+					sb.Insert(0, "https://api.twitter.com");
+
+				sb.Append(urlOrig, pos, urlOrig.Length - pos);
+
+				return sb.ToString();
+			}
+			else if (urlOrig.StartsWith("http://"))
+			{
+				return urlOrig.Replace("http://", "https://");
+			}
+			else
+			{
+				return urlOrig;
+			}
+		}
+
+		public static Uri FixUri(Uri uri)
+		{
+			if (uri.Scheme == "http")
+				return new UriBuilder(uri) { Scheme = "https" }.Uri;
+			else
+				return uri;
 		}
 	}
 
@@ -205,15 +276,13 @@ namespace RyuaNerin.OAuth
 
 			private ManualResetEvent m_waitHandle;
 			public ManualResetEvent AsyncWaitHandle { get { return this.m_waitHandle; } }
-			WaitHandle IAsyncResult.AsyncWaitHandle { get { return this.m_waitHandle; } }
-
 			public object AsyncState { get; set; }
-			object IAsyncResult.AsyncState { get { return this.AsyncState; } }
-
 			public bool IsCompleted { get; set; }
-			bool IAsyncResult.IsCompleted { get { return this.IsCompleted; } }
-
 			public bool CompletedSynchronously { get; set; }
+
+			WaitHandle IAsyncResult.AsyncWaitHandle { get { return this.m_waitHandle; } }
+			object IAsyncResult.AsyncState { get { return this.AsyncState; } }
+			bool IAsyncResult.IsCompleted { get { return this.IsCompleted; } }
 			bool IAsyncResult.CompletedSynchronously { get { return this.CompletedSynchronously; } }
 		}
 
@@ -251,27 +320,27 @@ namespace RyuaNerin.OAuth
 		#region Call
 		public string Call(string method, string uri)
 		{
-			return this.CallBase(method, new Uri(uri), null, null, null, null, null);
+			return this.CallBase(method, new Uri(OAuthUtils.FixUrl(uri)), null, null, null, null, null);
 		}
 		public string Call(string method, string uri, IDictionary<string, object> dic, string contentType = ContentType)
 		{
-			return this.CallBase(method, new Uri(uri), dic, null, null, null, contentType);
+			return this.CallBase(method, new Uri(OAuthUtils.FixUrl(uri)), dic, null, null, null, contentType);
 		}
-		public string Call(string method, string uri, object values, string contentType = ContentType)
+		public string Call(string method, string uri, object properties, string contentType = ContentType)
 		{
-			return this.CallBase(method, new Uri(uri), OAuthUtils.ObjectToDictionary(values), null, null, null, contentType);
+			return this.CallBase(method, new Uri(OAuthUtils.FixUrl(uri)), OAuthUtils.PropertyToDic(properties), null, null, null, contentType);
 		}
-		public string Call(string method, string uri, string body, string contentType = ContentType)
+		public string Call(string method, string uri, string data, string contentType = ContentType)
 		{
-			return this.CallBase(method, new Uri(uri), null, body, null, null, contentType);
+			return this.CallBase(method, new Uri(OAuthUtils.FixUrl(uri)), null, data, null, null, contentType);
 		}
-		public string Call(string method, string uri, byte[] body, string contentType = ContentType)
+		public string Call(string method, string uri, byte[] array, string contentType = ContentType)
 		{
-			return this.CallBase(method, new Uri(uri), null, null, body, null, contentType);
+			return this.CallBase(method, new Uri(OAuthUtils.FixUrl(uri)), null, null, array, null, contentType);
 		}
 		public string Call(string method, string uri, Stream stream, string contentType = ContentType)
 		{
-			return this.CallBase(method, new Uri(uri), null, null, null, stream, contentType);
+			return this.CallBase(method, new Uri(OAuthUtils.FixUrl(uri)), null, null, null, stream, contentType);
 		}
 
 		private string CallBase(string method, Uri uri, IDictionary<string, object> dic, string bodyString, byte[] bodyArray, Stream stream, string contentType)
@@ -285,48 +354,45 @@ namespace RyuaNerin.OAuth
 		#region Async
 		public IAsyncResult BeginCall(string method, Uri uri, AsyncCallback callBack = null, object state = null)
 		{
-			return this.BeginCallBase(method, uri, null, null, null, null, null, callBack, state);
-		}
-		public IAsyncResult BeginCall(string method, Uri uri, object values, string contentType = ContentType, AsyncCallback callBack = null, object state = null)
-		{
-			return this.BeginCallBase(method, uri, OAuthUtils.ObjectToDictionary(values), null, null, null, contentType, callBack, state);
+			return this.BeginCallBase(method, OAuthUtils.FixUri(uri), null, null, null, null, null, callBack, state);
 		}
 		public IAsyncResult BeginCall(string method, Uri uri, IDictionary<string, object> dic, string contentType = ContentType, AsyncCallback callBack = null, object state = null)
 		{
-			return this.BeginCallBase(method, uri, dic, null, null, null, contentType, callBack, state);
+			return this.BeginCallBase(method, OAuthUtils.FixUri(uri), dic, null, null, null, contentType, callBack, state);
 		}
-		public IAsyncResult BeginCall(string method, Uri uri, string body, string contentType = ContentType, AsyncCallback callBack = null, object state = null)
+		public IAsyncResult BeginCall(string method, Uri uri, object properties, string contentType = ContentType, AsyncCallback callBack = null, object state = null)
 		{
-			return this.BeginCallBase(method, uri, null, body, null, null, contentType, callBack, state);
+			return this.BeginCallBase(method, OAuthUtils.FixUri(uri), OAuthUtils.PropertyToDic(properties), null, null, null, contentType, callBack, state);
 		}
-		public IAsyncResult BeginCall(string method, Uri uri, byte[] body, string contentType = ContentType, AsyncCallback callBack = null, object state = null)
+		public IAsyncResult BeginCall(string method, Uri uri, string data, string contentType = ContentType, AsyncCallback callBack = null, object state = null)
 		{
-			return this.BeginCallBase(method, uri, null, null, body, null, contentType, callBack, state);
+			return this.BeginCallBase(method, OAuthUtils.FixUri(uri), null, data, null, null, contentType, callBack, state);
+		}
+		public IAsyncResult BeginCall(string method, Uri uri, byte[] array, string contentType = ContentType, AsyncCallback callBack = null, object state = null)
+		{
+			return this.BeginCallBase(method, OAuthUtils.FixUri(uri), null, null, array, null, contentType, callBack, state);
 		}
 		public IAsyncResult BeginCall(string method, Uri uri, Stream stream, string contentType = ContentType, AsyncCallback callBack = null, object state = null)
 		{
-			return this.BeginCallBase(method, uri, null, null, null, stream, contentType, callBack, state);
+			return this.BeginCallBase(method, OAuthUtils.FixUri(uri), null, null, null, stream, contentType, callBack, state);
 		}
 
-		private IAsyncResult BeginCallBase(string method, Uri uri, IDictionary<string, object> dic, string bodyString, byte[] bodyArray, Stream stream, string contentType, AsyncCallback callBack, object state)
+		private IAsyncResult BeginCallBase(string method, Uri uri, IDictionary<string, object> dic, string data, byte[] array, Stream stream, string contentType, AsyncCallback callBack, object state)
 		{
+			method = method.ToUpper();
+
 			Async async = new Async();
 
 			async.AsyncState = state;
 
 			IDictionary<string, object> dicParam = new Dictionary<string, object>();
 
-			if (dic != null || !string.IsNullOrEmpty(bodyString))
-			{
-				if (!string.IsNullOrEmpty(uri.Query))
-					dicParam.AddRange(OAuthUtils.ToDictionary(uri.Query));
-
-				if (!string.IsNullOrEmpty(bodyString))
-					dicParam.AddRange(OAuthUtils.ToDictionary(bodyString));
-
-				if (dic != null)
-					dicParam.AddRange(dic);
-			}
+			if (!string.IsNullOrEmpty(uri.Query))
+				dicParam.AddRange(OAuthUtils.StringToDic(uri.Query));
+			if (!string.IsNullOrEmpty(data))
+				dicParam.AddRange(OAuthUtils.StringToDic(data));
+			if (dic != null)
+				dicParam.AddRangeWithEncode(dic);
 
 			async.Request = this.MakeRequestBase(method, uri, dicParam);
 
@@ -338,20 +404,23 @@ namespace RyuaNerin.OAuth
 
 			async.Request.Timeout = this.TimeOut;
 
-			if (method == "POST" && (stream != null || bodyArray != null || dic != null || bodyString != null))
+			if (method == "POST" && (stream != null || array != null || dic != null || data != null))
 			{
-				if (stream != null)
-					async.Stream = stream;
-				else
+				if (stream == null)
 				{
-					if (bodyArray != null)
-						async.Stream = new MemoryStream(bodyArray);
+					if (array != null)
+						async.Stream = new MemoryStream(array);
 					else if (dic != null)
-						async.Stream = new MemoryStream(Encoding.UTF8.GetBytes(OAuthUtils.DicToString(dic)));
-					else if (bodyString != null)
-						async.Stream = new MemoryStream(Encoding.UTF8.GetBytes(bodyString));
+						async.Stream = new MemoryStream(Encoding.UTF8.GetBytes(OAuthUtils.DicToStringWithEncode(dic)));
+					else if (data != null)
+						async.Stream = new MemoryStream(Encoding.UTF8.GetBytes(data));
 
 					async.EmbStream = true;
+				}
+				else
+				{
+					async.Stream = stream;
+					async.EmbStream = false;
 				}
 
 				async.Request.ContentLength = async.Stream.Length;
@@ -380,44 +449,7 @@ namespace RyuaNerin.OAuth
 
 			return async.Result;
 		}
-		#endregion
 
-		#region GetRequest
-		public WebRequest MakeRequest(string method, Uri uri)
-		{
-			return this.MakeRequestBase(method, uri, null);
-		}
-		public WebRequest MakeRequest(string method, Uri uri, IDictionary<string, object> param)
-		{
-			return this.MakeRequestBase(method, uri, OAuthUtils.ToDictionary(uri.Query).AddRange(param));
-		}
-		public WebRequest MakeRequest(string method, Uri uri, object param)
-		{
-			return this.MakeRequestBase(method, uri, OAuthUtils.ToDictionary(uri.Query).AddRange(OAuthUtils.ObjectToDictionary(param)));
-		}
-		public WebRequest MakeRequest(string method, Uri uri, string param)
-		{
-			return this.MakeRequestBase(method, uri, OAuthUtils.ToDictionary(uri.Query).AddRange(OAuthUtils.ToDictionary(param)));
-		}
-
-		private WebRequest MakeRequestBase(string method, Uri uri, IDictionary<string, object> dicParam)
-		{
-			if (method == "GET" && dicParam != null)
-				uri = new UriBuilder(uri) { Query = OAuthUtils.DicToString(dicParam) }.Uri;
-
-			WebRequest req = WebRequest.Create(uri);
-			req.Method = method;
-
-			if (this.Proxy != null)
-				req.Proxy = this.Proxy;
-
-			req.Headers.Add("Authorization", this.GetOAuthBase(method, uri, dicParam));
-
-			return req;
-		}
-		#endregion
-
-		#region WebRequest
 		private void GetStream(IAsyncResult o)
 		{
 			Async async = (Async)o.AsyncState;
@@ -433,17 +465,25 @@ namespace RyuaNerin.OAuth
 
 				if (async.EmbStream)
 					async.Stream.Dispose();
+
+				async.BaseAsync = async.Request.BeginGetResponse(this.GetResult, async);
 			}
 			catch (Exception e)
 			{
+				try
+				{
+					async.Request.Abort();
+				}
+				catch
+				{ }
+
 				async.Exception = e;
+				async.Result = null;
 
 				async.AsyncWaitHandle.Set();
 				if (async.CallBack != null)
 					async.CallBack.Invoke(async);
 			}
-
-			async.BaseAsync = async.Request.BeginGetResponse(this.GetResult, async);
 		}
 
 		private void GetResult(IAsyncResult o)
@@ -465,9 +505,15 @@ namespace RyuaNerin.OAuth
 			catch (Exception e)
 			{
 				async.Exception = e;
+				async.Result = null;
 			}
 
-			async.Request.Abort();
+			try
+			{
+				async.Request.Abort();
+			}
+			catch
+			{ }
 
 			async.AsyncWaitHandle.Set();
 			if (async.CallBack != null)
@@ -475,40 +521,50 @@ namespace RyuaNerin.OAuth
 		}
 		#endregion
 
-		#region Create OAuth
-		private static string[] oauth_array =
+		#region GetRequest
+		public WebRequest MakeRequest(string method, Uri uri)
 		{
-			"oauth_consumer_key",
-			"oauth_version",
-			"oauth_nonce",
-			"oauth_signature",
-			"oauth_signature_method",
-			"oauth_timestamp",
-			"oauth_token",
-			"oauth_callback"
-		};
+			return this.MakeRequestBase(method, OAuthUtils.FixUri(uri), null);
+		}
+		public WebRequest MakeRequest(string method, Uri uri, IDictionary<string, object> dic)
+		{
+			return this.MakeRequestBase(method, OAuthUtils.FixUri(uri), OAuthUtils.StringToDic(uri.Query).AddRangeWithEncode(dic));
+		}
+		public WebRequest MakeRequest(string method, Uri uri, object properties)
+		{
+			return this.MakeRequestBase(method, OAuthUtils.FixUri(uri), OAuthUtils.StringToDic(uri.Query).AddRangeWithEncode(OAuthUtils.PropertyToDic(properties)));
+		}
+		public WebRequest MakeRequest(string method, Uri uri, string data)
+		{
+			return this.MakeRequestBase(method, OAuthUtils.FixUri(uri), OAuthUtils.StringToDic(uri.Query).AddRange(OAuthUtils.StringToDic(data)));
+		}
 
-		public string GetOAuth(string method, Uri uri)
+		private WebRequest MakeRequestBase(string method, Uri uri, IDictionary<string, object> dicParam)
 		{
-			return this.GetOAuthBase(method, uri, OAuthUtils.ToDictionary(uri.Query));
+			method = method.ToUpper();
+
+			if (method == "GET" && dicParam != null)
+				uri = new UriBuilder(uri) { Query = OAuthUtils.DicToString(dicParam) }.Uri;
+
+			WebRequest req = WebRequest.Create(uri);
+			req.Method = method;
+
+			if (this.Proxy != null)
+				req.Proxy = this.Proxy;
+
+			req.Headers.Add("Authorization", this.GetOAuthBase(method, uri, dicParam));
+
+			return req;
 		}
-		public string GetOAuth(string method, Uri uri, IDictionary<string, object> param)
-		{
-			return this.GetOAuthBase(method, uri, OAuthUtils.ToDictionary(uri.Query).AddRangeWithEncode(param));
-		}
-		public string GetOAuth(string method, Uri uri, object param)
-		{
-			return this.GetOAuthBase(method, uri, OAuthUtils.ToDictionary(uri.Query).AddRangeWithEncode(OAuthUtils.ObjectToDictionary(param)));
-		}
-		public string GetOAuth(string method, Uri uri, string param)
-		{
-			return this.GetOAuthBase(method, uri, OAuthUtils.ToDictionary(uri.Query).AddRangeWithEncode(OAuthUtils.ToDictionary(param)));
-		}
+		#endregion
+
+		#region Create OAuth
+		private static string[] oauth_array = { "oauth_consumer_key", "oauth_version", "oauth_nonce", "oauth_signature", "oauth_signature_method", "oauth_timestamp", "oauth_token", "oauth_callback" };
 
 		private string GetOAuthBase(string method, Uri uri, IDictionary<string, object> param)
 		{
 			string nonce = OAuthUtils.GetNonce();
-			long timestamp = OAuthUtils.GenerateTimeStamp();
+			long timestamp = OAuthUtils.GetTimeStamp();
 
 			IDictionary<string, object> dicSorted = new SortedDictionary<string, object>();
 			if (param != null)
@@ -535,7 +591,7 @@ namespace RyuaNerin.OAuth
 			string hashData = string.Format(
 					"{0}&{1}&{2}",
 					method.ToUpper(),
-					OAuthUtils.UrlEncode(String.Format("{0}{1}{2}{3}", uri.Scheme, Uri.SchemeDelimiter, uri.Host, uri.AbsolutePath)),
+					OAuthUtils.UrlEncode(string.Format("{0}{1}{2}{3}", uri.Scheme, Uri.SchemeDelimiter, uri.Host, uri.AbsolutePath)),
 					OAuthUtils.UrlEncode(OAuthUtils.DicToString(dicSorted))
 					);
 
