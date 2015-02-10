@@ -1,6 +1,6 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
-// TOAuthLib v1.3.0
+// TOAuthLib v1.3.1
 // Require over .Net 4.0 or 2.0
 // Made by RyuaNerin
 // Last Update : 2015-01-26
@@ -444,7 +444,7 @@ namespace TOAuthLib
 				req.Proxy = this.Proxy;
 
 			req.UserAgent = "TOAuth v1.3.0";
-			req.Headers.Add("Authorization", this.GetOAuthBase(method, uri, dicParams));
+			req.Headers.Add("Authorization", this.GetOAuthBase(method, uri, dicParams, callback));
 
 			return req;
 		}
