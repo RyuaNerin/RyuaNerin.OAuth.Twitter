@@ -1,9 +1,9 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
-// TOAuthLib v1.3.1
+// TOAuthLib v1.3.2
 // Require over .Net 4.0 or 2.0
 // Made by RyuaNerin
-// Last Update : 2015-01-26
+// Last Update : 2015-02-11
 //
 // The MIT License (MIT)
 //
@@ -29,7 +29,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-// #define USENET40
+#define USENET40
 
 using System;
 using System.Collections.Generic;
@@ -56,8 +56,8 @@ namespace TOAuthLib
 			{
 
 			}
-			internal TwitterException(WebExceptionStatus status, string response)
-				: base(response)
+			internal TwitterException(Exception e, WebExceptionStatus status, string response)
+				: base(response, e)
 			{
 				this.m_response = response;
 				this.m_status = status;
@@ -72,7 +72,7 @@ namespace TOAuthLib
 			public string Response { get { return this.m_response; } }
 		}
 
-		private const string ContentType = "application/x-www-form-urlencoded";
+		public const string ContentType = "application/x-www-form-urlencoded";
 
 		#region Constructor
 		public TOAuth(string appToken, string appSecret) : this(appToken, appSecret, null, null)
@@ -133,7 +133,7 @@ namespace TOAuthLib
 		{
 			method = method.ToUpper();
 
-			return Task.Factory.StartNew(() =>
+			return Task.Factory.StartNew<string>(() =>
 				{
 					Exception ex;
 
@@ -152,6 +152,8 @@ namespace TOAuthLib
 						{
 							if (stm != null)
 							{
+								if (stm.CanSeek) stm.Seek(0, SeekOrigin.Begin);
+
 								req.ContentLength = stm.Length;
 								WriteTo(stm, req.GetRequestStream());
 							}
@@ -174,8 +176,8 @@ namespace TOAuthLib
 						}
 
 						using (WebResponse wres = req.GetResponse())
-						using (StreamReader reader = new StreamReader(wres.GetResponseStream(), Encoding.UTF8))
-							return reader.ReadToEnd();
+							using (StreamReader reader = new StreamReader(wres.GetResponseStream(), Encoding.UTF8))
+								return reader.ReadToEnd();
 					}
 					catch (WebException e)
 					{
@@ -185,7 +187,7 @@ namespace TOAuthLib
 						{
 							using (StreamReader reader = new StreamReader(e.Response.GetResponseStream(), Encoding.UTF8))
 							{
-								te = new TwitterException(e.Status, reader.ReadToEnd());
+								te = new TwitterException(e, e.Status, reader.ReadToEnd());
 								reader.Close();
 							}
 						}
@@ -197,7 +199,10 @@ namespace TOAuthLib
 						ex = e;
 					}
 
-					throw ex;
+					if (ex != null)
+						throw ex;
+
+					return null;
 				});
 		}
 #else
@@ -376,7 +381,7 @@ namespace TOAuthLib
 				{
 					using (StreamReader reader = new StreamReader(we.Response.GetResponseStream(), Encoding.UTF8))
 					{
-						te = new TwitterException(we.Status, reader.ReadToEnd());
+						te = new TwitterException(e, we.Status, reader.ReadToEnd());
 						reader.Close();
 					}
 					we.Response.Close();
@@ -495,13 +500,13 @@ namespace TOAuthLib
 				sig = Convert.ToBase64String(oCrypt.ComputeHash(Encoding.UTF8.GetBytes(hashData)));
 			}
 
-			dicSorted.Add("oauth_signature", sig);
+			dicSorted.Add("oauth_signature", TOAuth.UrlEncode(sig));
 
 			StringBuilder sbData = new StringBuilder();
 			sbData.Append("OAuth ");
 			foreach (KeyValuePair<string, object> st in dicSorted)
 				if (Array.IndexOf<string>(oauth_array, st.Key) >= 0)
-					sbData.AppendFormat("{0}=\"{1}\",", st.Key, TOAuth.UrlEncode(Convert.ToString(st.Value)));
+					sbData.AppendFormat("{0}=\"{1}\",", st.Key, Convert.ToString(st.Value));
 			sbData.Remove(sbData.Length - 1, 1);
 
 			return sbData.ToString();
