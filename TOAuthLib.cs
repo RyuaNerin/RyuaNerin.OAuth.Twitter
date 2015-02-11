@@ -1,9 +1,9 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
-// TOAuthLib v1.3.2
+// TOAuthLib v1.3.3
 // Require over .Net 4.0 or 2.0
 // Made by RyuaNerin
-// Last Update : 2015-02-11
+// Last Update : 2015-02-12
 //
 // The MIT License (MIT)
 //
@@ -170,29 +170,39 @@ namespace TOAuthLib
 								using (streamReq)
 								{
 									req.ContentLength = streamReq.Length;
-									WriteTo(streamReq, req.GetRequestStream());
+									using (Stream stream = req.GetRequestStream())
+										WriteTo(streamReq, stream);
 								}
 							}
 						}
 
 						using (WebResponse wres = req.GetResponse())
-							using (StreamReader reader = new StreamReader(wres.GetResponseStream(), Encoding.UTF8))
-								return reader.ReadToEnd();
+							using (Stream stream = wres.GetResponseStream())
+								using (StreamReader reader = new StreamReader(stream, Encoding.UTF8))
+									return reader.ReadToEnd();
 					}
 					catch (WebException e)
 					{
 						TwitterException te;
 
-						using (e.Response)
+						if (e.Response != null)
 						{
-							using (StreamReader reader = new StreamReader(e.Response.GetResponseStream(), Encoding.UTF8))
+							using (e.Response)
 							{
-								te = new TwitterException(e, e.Status, reader.ReadToEnd());
-								reader.Close();
+								using (Stream stream = e.Response.GetResponseStream())
+								{
+									using (StreamReader reader = new StreamReader(stream, Encoding.UTF8))
+									{
+										te = new TwitterException(e, e.Status, reader.ReadToEnd());
+										reader.Close();
+									}
+								}
 							}
+							
+							ex = te;
 						}
-
-						ex = te;
+						else
+							ex = e;
 					}
 					catch (Exception e)
 					{
@@ -371,32 +381,36 @@ namespace TOAuthLib
 
 		private void ErrorSet(Exception e, Async async)
 		{
-			if (e is WebException)
-			{
-				WebException we = e as WebException;
-		
-				TwitterException te;
-
-				using (we.Response)
-				{
-					using (StreamReader reader = new StreamReader(we.Response.GetResponseStream(), Encoding.UTF8))
-					{
-						te = new TwitterException(e, we.Status, reader.ReadToEnd());
-						reader.Close();
-					}
-					we.Response.Close();
-				}
-				
-				async.Exception = te;
-			}
-			else
-			{
-				async.Exception = e;
-			}
-
 			try
 			{
-				async.Request.Abort();
+				if (e is WebException)
+				{
+					WebException we = e as WebException;
+		
+					TwitterException te;
+
+					using (we.Response)
+					{
+						using (StreamReader reader = new StreamReader(we.Response.GetResponseStream(), Encoding.UTF8))
+						{
+							te = new TwitterException(e, we.Status, reader.ReadToEnd());
+							reader.Close();
+						}
+						we.Response.Close();
+					}
+				
+					async.Exception = te;
+				}
+				else
+				{
+					async.Exception = e;
+				}
+
+				try
+				{
+					async.Request.Abort();
+				}
+				catch { }
 			}
 			catch { }
 
@@ -408,6 +422,7 @@ namespace TOAuthLib
 		}
 #endif
 
+		#region Make Request
 		public WebRequest MakeRequest(string method, string uri, object data, string callback = null)
 		{
 			return MakeRequest(method, new Uri(TOAuth.FixUrl(uri)), data, callback);
@@ -453,6 +468,7 @@ namespace TOAuthLib
 
 			return req;
 		}
+		#endregion
 
 		#region Create OAuth
 		private static string[] oauth_array = { "oauth_consumer_key", "oauth_version", "oauth_nonce", "oauth_signature", "oauth_signature_method", "oauth_timestamp", "oauth_token", "oauth_callback" };
