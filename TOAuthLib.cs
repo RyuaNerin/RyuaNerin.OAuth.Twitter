@@ -1,9 +1,9 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
-// TOAuthLib v1.3.3
+// TOAuthLib v1.3.4
 // Require over .Net 4.0 or 2.0
 // Made by RyuaNerin
-// Last Update : 2015-02-12
+// Last Update : 2015-02-17
 //
 // The MIT License (MIT)
 //
@@ -105,7 +105,7 @@ namespace TOAuthLib
 #if USENET40
 		public string Call(string method, string uri, object data = null, string contentType = ContentType, string callback = null)
 		{
-			return Call(method, new Uri(TOAuth.FixUrl(uri)), data, ContentType, callback);
+			return Call(method, new Uri(TOAuth.FixUrl(uri)), data, contentType, callback);
 		}
 		public string Call(string method, Uri uri, object data = null, string contentType = ContentType, string callback = null)
 		{
@@ -116,7 +116,7 @@ namespace TOAuthLib
 		
 		public Task<string> CallAsync(string method, string uri, object data = null, string contentType = ContentType, string callback = null)
 		{
-			return CallAsync(method, new Uri(TOAuth.FixUrl(uri)), data, ContentType, callback);
+			return CallAsync(method, new Uri(TOAuth.FixUrl(uri)), data, contentType, callback);
 		}
 		public Task<string> CallAsync(string method, Uri uri, object data = null, string contentType = ContentType, string callback = null)
 		{
@@ -170,8 +170,7 @@ namespace TOAuthLib
 								using (streamReq)
 								{
 									req.ContentLength = streamReq.Length;
-									using (Stream stream = req.GetRequestStream())
-										WriteTo(streamReq, stream);
+									WriteTo(streamReq, req.GetRequestStream());
 								}
 							}
 						}
@@ -242,7 +241,7 @@ namespace TOAuthLib
 
 		public string Call(string method, string uri, object data = null, string contentType = ContentType, string callback = null, AsyncCallback asyncCallback = null, object state = null)
 		{
-			return Call(method, new Uri(TOAuth.FixUrl(uri)), data, ContentType, callback, asyncCallback, state);
+			return Call(method, new Uri(TOAuth.FixUrl(uri)), data, contentType, callback, asyncCallback, state);
 		}
 		public string Call(string method, Uri uri, object data = null, string contentType = ContentType, string callback = null, AsyncCallback asyncCallback = null, object state = null)
 		{
@@ -253,7 +252,7 @@ namespace TOAuthLib
 
 		public IAsyncResult BeginCall(string method, string uri, object data = null, string contentType = ContentType, string callback = null, AsyncCallback asyncCallback = null, object state = null)
 		{
-			return BeginCall(method, new Uri(TOAuth.FixUrl(uri)), data, ContentType, callback, asyncCallback, state);
+			return BeginCall(method, new Uri(TOAuth.FixUrl(uri)), data, contentType, callback, asyncCallback, state);
 		}
 		public IAsyncResult BeginCall(string method, Uri uri, object data = null, string contentType = ContentType, string callback = null, AsyncCallback asyncCallback = null, object state = null)
 		{
