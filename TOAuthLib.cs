@@ -1,6 +1,6 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
-// TOAuthLib v1.3.4
+// TOAuthLib v1.3.5
 // Require over .Net 4.0 or 2.0
 // Made by RyuaNerin
 // Last Update : 2015-02-17
@@ -109,9 +109,11 @@ namespace TOAuthLib
 		}
 		public string Call(string method, Uri uri, object data = null, string contentType = ContentType, string callback = null)
 		{
-			Task<string> task = CallAsync(method, uri, data, contentType, callback);
-			task.Wait();
-			return task.Result;
+			using (Task<string> task = CallAsync(method, uri, data, contentType, callback))
+			{
+				task.Wait();
+				return task.Result;
+			}
 		}
 		
 		public Task<string> CallAsync(string method, string uri, object data = null, string contentType = ContentType, string callback = null)
@@ -443,7 +445,7 @@ namespace TOAuthLib
 
 			Dictionary<string, object> dicParams = new Dictionary<string, object>();
 
-			if (string.IsNullOrEmpty(uri.Query))
+			if (!string.IsNullOrEmpty(uri.Query))
 				TOAuth.AddDictionary(dicParams, TOAuth.ToDictionary(uri.Query));
 
 			if (dic != null)
@@ -587,7 +589,7 @@ namespace TOAuthLib
 			return sb.ToString();
 		}
 
-		private static Random rnd = new Random(DateTime.UtcNow.Millisecond);
+		private static Random rnd = new Random(DateTime.Now.Millisecond);
 		private static string GetNonce()
 		{
 			return rnd.Next(int.MinValue, int.MaxValue).ToString("X");
