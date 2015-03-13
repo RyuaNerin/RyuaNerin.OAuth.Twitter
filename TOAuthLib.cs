@@ -1,6 +1,6 @@
 ////////////////////////////////////////////////////////////////////////////////
 //
-// TOAuthLib v1.3.5
+// TOAuthLib v1.3.6
 // Require over .Net 4.0 or 2.0
 // Made by RyuaNerin
 // Last Update : 2015-02-17
@@ -654,7 +654,7 @@ namespace TOAuthLib
 						else
 							val = str.Substring(read, find - read);
 
-						read = find;
+						read = find + 1;
 					}
 					else
 					{
